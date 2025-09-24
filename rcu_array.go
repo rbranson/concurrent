@@ -10,30 +10,16 @@ import (
 // RCUArray provides a high-performance, concurrency-safe array of values that
 // supports non-blocking readers (Acquire/Release) and a blocking writer (Swap)
 // that waits for pre-swap readers to finish before returning the replaced
-// value. Passing a non-zero stride avoids false sharing from cache contention,
-// which is particularly important for compact types such as pointers. This
-// shows Swap() throughput improvements of 3X in microbenchmarks.
+// value.
 //
-// Semantics
-//   - Acquire(index) returns the value currently stored at index and records a
-//     reader acquisition. Acquire never blocks.
-//   - Release(index) releases a prior Acquire for the same index. Release never
-//     blocks.
-//   - Swap(index, val) replaces the value at index with val and returns the
-//     previous value. It blocks until all acquisitions that began before the
-//     swap's publication have been released. Note that Swap may conservatively
-//     wait for some post-swap acquisitions as well, but it will never return
-//     before all pre-swap acquisitions complete.
+// Unlike guarding a value with a Mutex/RWMutex, which would enforce a single
+// global visible version, RCUArray allows multiple versions to exist
+// concurrently. However, reads are still linearizable: they always return the
+// most recent value.
 //
-// Design notes
-//   - This implementation uses a per-index pair of monotonically increasing
-//     counters (acquiresStarted and acquiresCompleted), following an RCU-style
-//     grace period: Swap publishes the new value, snapshots acquiresStarted,
-//     and then waits until acquiresCompleted reaches at least that snapshot.
-//   - Slots are laid out with a configurable stride. Use stride 0 (default) for
-//     a compact packed layout. Use a stride greater or equal to the cache-line
-//     size (commonly 64 bytes) to avoid cache-line contention (false sharing)
-//     between indices when goroutines operate on different slots concurrently.
+// Passing a non-zero stride avoids false sharing from cache contention, which
+// is particularly important for compact types such as pointers. Proper
+// striding shows throughput improvements of 3X in microbenchmarks.
 //
 // The Acquire/Release critical section is extremely fast: two atomic adds and
 // one atomic load of the active buffer selector.
