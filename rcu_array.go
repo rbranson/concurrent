@@ -48,18 +48,12 @@ type slot[T any] struct {
 	// stride region is unused padding.
 }
 
-// NewRCUArray constructs a new RCUArray of length n with each element
-// initialized to the zero value of T, using a compact packed layout (stride 0).
-func NewRCUArray[T any](n int) *RCUArray[T] {
-	return NewRCUArrayWithStride[T](n, 0)
-}
-
 // NewRCUArrayWithStride constructs a new RCUArray of length n with a specified
 // stride in bytes between consecutive slots. Pass 0 for a compact packed layout
 // (i.e., stride equals the size of a slot). If you want to be very sure to avoid
 // contention from false sharing, use a 128-byte stride since that will cover
 // architectures with 64-byte cache lines as well.
-func NewRCUArrayWithStride[T any](n int, stride int) *RCUArray[T] {
+func NewRCUArray[T any](n int, stride int) *RCUArray[T] {
 	if n < 0 {
 		panic("negative length")
 	}
@@ -105,25 +99,10 @@ func NewRCUArrayWithStride[T any](n int, stride int) *RCUArray[T] {
 	return ra
 }
 
-// NewRCUArrayFromSlice constructs a new RCUArray initialized from
-// vals. The array length equals len(vals) and each index starts with the
-// corresponding value from vals.
-func NewRCUArrayFromSlice[T any](vals []T) *RCUArray[T] {
-	ra := NewRCUArrayWithStride[T](len(vals), 0)
-	var zero T
-	for i := range vals {
-		s := ra.slot(i)
-		s.data[0] = vals[i]
-		s.data[1] = zero
-		s.active.Store(0)
-	}
-	return ra
-}
-
-// NewRCUArrayFromSliceWithStride constructs a new RCUArray initialized from
-// vals with a specified stride. See NewRCUArrayWithStride for stride semantics.
-func NewRCUArrayFromSliceWithStride[T any](vals []T, stride int) *RCUArray[T] {
-	ra := NewRCUArrayWithStride[T](len(vals), stride)
+// NewRCUArrayFromSlice constructs a new RCUArray initialized from vals with
+// a specified stride. See NewRCUArray for stride semantics.
+func NewRCUArrayFromSlice[T any](vals []T, stride int) *RCUArray[T] {
+	ra := NewRCUArray[T](len(vals), stride)
 	var zero T
 	for i := range vals {
 		s := ra.slot(i)

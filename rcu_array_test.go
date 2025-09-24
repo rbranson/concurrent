@@ -12,7 +12,7 @@ import (
 func TestRCUArrayLen(t *testing.T) {
 	cases := []int{0, 1, 2, 7, 64, 127, 256}
 	for _, n := range cases {
-		ra := NewRCUArray[int](n)
+		ra := NewRCUArray[int](n, 0)
 		if ra.Len() != n {
 			t.Fatalf("Len() = %d, want %d", ra.Len(), n)
 		}
@@ -23,7 +23,7 @@ func TestRCUArrayLen(t *testing.T) {
 }
 
 func TestRCUArray_Basic(t *testing.T) {
-	ra := NewRCUArrayFromSlice([]int{1, 2, 3})
+	ra := NewRCUArrayFromSlice([]int{1, 2, 3}, 0)
 	if got, want := ra.Len(), 3; got != want {
 		t.Fatalf("Len()=%d want %d", got, want)
 	}
@@ -48,28 +48,28 @@ func TestRCUArray_Basic(t *testing.T) {
 func TestRCUArray_SizeAndStride(t *testing.T) {
 	n := 5
 	// Default compact (stride 0 -> packed)
-	ra0 := NewRCUArray[int](n)
+	ra0 := NewRCUArray[int](n, 0)
 	size0 := ra0.Size()
 	if size0 == 0 {
 		t.Fatalf("Size() should be > 0 for n=%d", n)
 	}
 
-	// Explicit compact via WithStride(0) should be comparable or equal
-	ra0b := NewRCUArrayWithStride[int](n, 0)
+	// Explicit compact via stride 0 should match compact default
+	ra0b := NewRCUArray[int](n, 0)
 	size0b := ra0b.Size()
 	if size0b != size0 {
 		t.Fatalf("Size() mismatch: stride0a=%d stride0b=%d", size0, size0b)
 	}
 
 	// Stride >= slot size should increase backing at least by (stride-slotSize)*n approximately
-	ra64 := NewRCUArrayWithStride[int](n, 64)
+	ra64 := NewRCUArray[int](n, 64)
 	size64 := ra64.Size()
 	if size64 <= size0 {
 		t.Fatalf("Size() with stride 64 should be > compact: %d <= %d", size64, size0)
 	}
 
 	// Stride smaller than slot size should be accepted and rounded up
-	underStride := NewRCUArrayWithStride[int](n, 32)
+	underStride := NewRCUArray[int](n, 32)
 	if got := underStride.Size(); got != size0 {
 		t.Fatalf("Size() with stride smaller than slot size: got %d want %d", got, size0)
 	}
@@ -96,7 +96,7 @@ func TestRCUArray_StrideConsistency(t *testing.T) {
 				values[i] = (stride+1)*1_000_000 + i*7 + 3
 			}
 
-			ra := NewRCUArrayFromSliceWithStride[int](values, stride)
+			ra := NewRCUArrayFromSlice(values, stride)
 			for i := 0; i < n; i++ {
 				if got := ra.Get(i); got != values[i] {
 					t.Fatalf("Get(%d)=%d want %d", i, got, values[i])
@@ -135,7 +135,7 @@ func TestRCUArray_StrideConsistency(t *testing.T) {
 }
 
 func TestRCUArray_GetBasic(t *testing.T) {
-	ra := NewRCUArrayFromSlice([]int{10, 20, 30})
+	ra := NewRCUArrayFromSlice([]int{10, 20, 30}, 0)
 	if got, want := ra.Get(0), 10; got != want {
 		t.Fatalf("Get(0)=%d want %d", got, want)
 	}
@@ -152,7 +152,7 @@ func TestRCUArray_GetBasic(t *testing.T) {
 }
 
 func TestRCUArray_SwapWaitsForAcquires(t *testing.T) {
-	ra := NewRCUArrayFromSlice([]int{7})
+	ra := NewRCUArrayFromSlice([]int{7}, 0)
 	var started sync.WaitGroup
 	started.Add(1)
 
@@ -183,7 +183,7 @@ func TestRCUArray_SwapWaitsForAcquires(t *testing.T) {
 }
 
 func TestRCUArray_SwapCanReturnEarlyWithOutstandingReader(t *testing.T) {
-	ra := NewRCUArrayFromSlice([]int{0})
+	ra := NewRCUArrayFromSlice([]int{0}, 0)
 	currentValue := 0
 	deadline := time.Now().Add(5 * time.Second)
 
@@ -280,7 +280,7 @@ func TestRCUArray_HighContention(t *testing.T) {
 		nWrite   = 4
 		duration = 200 * time.Millisecond
 	)
-	ra := NewRCUArray[int](nIdx)
+	ra := NewRCUArray[int](nIdx, 0)
 
 	var stop atomic.Bool
 	var wg sync.WaitGroup
@@ -340,7 +340,7 @@ func TestRCUArray_GetContention(t *testing.T) {
 		nWrite   = 2
 		duration = 150 * time.Millisecond
 	)
-	ra := NewRCUArray[int](nIdx)
+	ra := NewRCUArray[int](nIdx, 0)
 
 	var stop atomic.Bool
 	var wg sync.WaitGroup

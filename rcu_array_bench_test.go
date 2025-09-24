@@ -23,7 +23,7 @@ func BenchmarkSwapContention(b *testing.B) {
 	for _, tc := range cases {
 		tc := tc
 		b.Run(tc.name, func(b *testing.B) {
-			ra := NewRCUArrayWithStride[int](workers, tc.stride)
+			ra := NewRCUArray[int](workers, tc.stride)
 			var workerSeq atomic.Uint64
 
 			b.ReportAllocs()
@@ -71,7 +71,7 @@ func BenchmarkSwapContentionCompare(b *testing.B) {
 }
 
 func benchmarkSwapRCU(b *testing.B, workers, stride int) {
-	ra := NewRCUArrayWithStride[int](workers, stride)
+	ra := NewRCUArray[int](workers, stride)
 	var workerSeq atomic.Uint64
 
 	b.ReportAllocs()
@@ -106,7 +106,7 @@ func benchmarkSwapRWMutex(b *testing.B, workers, stride int) {
 		type slot struct {
 			mu    sync.RWMutex
 			value int
-			pad   [256]byte
+			_     [256]byte // padding
 		}
 		slots := make([]slot, workers)
 		getSlot = func(i int) (*sync.RWMutex, *int) {
